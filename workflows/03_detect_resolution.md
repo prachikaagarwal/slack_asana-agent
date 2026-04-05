@@ -1,36 +1,36 @@
-# Step 5: Detect Resolution from User's Replies & Reactions
+# Step 3: Detect Resolution from User's Replies & Reactions
 
 ## Goal
-Mark action items as `resolved` only when **`$USER_NAME`** (identified by `$SLACK_USER_ID`) posts a resolution signal in a thread reply or top-level channel message, or when a ✅ reaction is added to the original message.
+Mark action items as `resolved` only when `$USER_NAME` (identified by `$SLACK_USER_ID`) posts a resolution signal in a thread reply or top-level channel message, or when a ✅ reaction is added to the original message.
 
-All identity values are read from `.env` / `.env`.
+**Authentication:** via the Slack MCP. No tokens needed.
 
 ## Inputs
-- `output/{date}/slack/consolidated_{channel_name}.json` from Steps 2/4
-- `$SLACK_USER_ID` (from `.env`, or resolved in Step 1)
+- `output/{date}/slack/consolidated_{channel_name}.json` from Steps 1/2
+- `$SLACK_USER_ID` (from `.env`, or resolved in Step 1 via Slack MCP)
 
 ## Actions
 
-### 1. Check Top-Level Channel Messages from `$USER_NAME` (Batch Resolution)
-Scan for messages posted by `$SLACK_USER_ID` directly in the channel (not in a thread) that:
+### 1. Check Top-Level Channel Messages from the User (Batch Resolution)
+Use the Slack MCP to scan for messages posted by `$SLACK_USER_ID` directly in the channel (not in a thread) that:
 - Contain phrases: "now resolved", "these are fixed", "all done", "completed", "pushed a fix"
 - List items with bullet points
 
-When found, match each listed item against open issues in that channel and mark them **Resolved**. One message can batch-resolve multiple issues.
+When found, match each listed item against open issues and mark them **Resolved**. One message can batch-resolve multiple issues.
 
-Also extract any items flagged as still open or needing follow-up in the same message (e.g. "a few quick notes:" or "still working on:" sections) → new Open action items.
+Also extract items flagged as still open or needing follow-up in the same message → new Open action items.
 
-### 2. Check Thread Replies from `$USER_NAME`
-For each issue's source thread, read all replies. Mark as **Resolved** if `$SLACK_USER_ID` posted a reply containing:
+### 2. Check Thread Replies from the User
+For each issue's source thread, read all replies via the Slack MCP. Mark as **Resolved** if `$SLACK_USER_ID` posted a reply containing:
 - "resolved", "done", "fixed", "deployed", "pushed", "shipped", "updated", "live", "this is now", "going out", "merged", "working now"
 
 Resolution can come from any reply at any time — not just same-day.
 
 ### 3. Check for ✅ Reaction
-If a ✅ (`:white_check_mark:`) reaction was added to the original message → mark as **Resolved**.
+Use the Slack MCP to fetch reactions on the original message. If a ✅ (`:white_check_mark:`) reaction is present → mark as **Resolved**.
 
 ### 4. Default
-If none of the above signals are present → status remains **Open**.
+If none of the above signals → status remains **Open**.
 
 ### 5. Update Action Item Status
 - Set `status`: `"open"` → `"resolved"`

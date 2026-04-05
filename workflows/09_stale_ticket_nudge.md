@@ -3,7 +3,7 @@
 ## Goal
 After the main sync, check all open Asana tickets assigned to `$ASANA_USER_ID` for staleness and post a single status nudge comment if a ticket has gone quiet.
 
-All identity values are read from `.env` / `.env`.
+**Authentication:** via the Slack MCP and Asana MCP. No API tokens needed.
 
 ## Inputs
 - All open Asana tickets assigned to `$ASANA_USER_ID` in project `$ASANA_PROJECT_ID`
@@ -12,10 +12,10 @@ All identity values are read from `.env` / `.env`.
 
 ## Staleness Conditions
 A ticket is stale if **BOTH** are true:
-1. No comment has been added to the ticket in 3+ days
+1. No comment added in 3+ days
 2. No meaningful Slack update from `$SLACK_USER_ID` in the matching customer channel in the last `$LOOKBACK_DAYS` days
 
-**What counts as a Slack update:** A message from `$SLACK_USER_ID` OR a message from a customer/SA that the user should be aware of (client feedback, blocker resolution, new action items).
+**What counts as a Slack update:** A message from `$SLACK_USER_ID` OR a message from a customer/SA the user should be aware of (client feedback, blocker resolution, new action items).
 
 **Does NOT count:** Bot joins, AirOps Customers bot messages, purely administrative messages.
 
@@ -25,23 +25,21 @@ A ticket is stale if **BOTH** are true:
 Re-use the ticket list from Step 5. Filter to only incomplete tickets assigned to `$ASANA_USER_ID`.
 
 ### 2. Check Each Ticket for Staleness
-For each ticket:
-- Find the most recent comment timestamp from `existing_comment_texts`
 - If last comment was < 3 days ago → **not stale**, skip
-- If last comment was 3+ days ago → check matching Slack channel for activity (Step 3 data)
+- If last comment was 3+ days ago → check matching Slack channel for activity via Slack MCP
 - If Slack also has no meaningful update → **stale**
 
 ### 3. Check for Existing Nudge
-Look for a `<!-- customer-slack-stale-nudge -->` comment on the ticket. If one exists and was added within the last 3 days → skip (don't double-nudge).
+Scan `existing_comment_texts` for `<!-- customer-slack-stale-nudge -->`. If one was added within the last 3 days → skip.
 
 ### 4. Skip Rules
 - Skip any ticket whose name matches an entry in `$STALE_TICKET_SKIP` (set in `.env`)
 - Skip any ticket where `$ASANA_USER_ID` commented in Asana within the last 3 days
 
-### 5. Write the Nudge Comment
-```
-POST /tasks/{task_gid}/stories
+### 5. Post the Nudge Comment
+Use the Asana MCP to add a story/comment to the task:
 
+```
 <!-- customer-slack-stale-nudge -->
 📋 Status Update — [Customer Name]
 Last synced: [YYYY-MM-DD]
@@ -55,7 +53,7 @@ Last synced: [YYYY-MM-DD]
 _Auto-nudge: No Asana comment in [N]+ days. Synced from Slack by customer-slack-to-asana skill._
 ```
 
-Keep the comment skimmable — distill from Slack threads + existing Asana comments. Do not paste raw messages.
+Keep it skimmable — distill from Slack threads + existing Asana comments. Do not paste raw messages.
 
 ### 6. Log Results
 Record each nudge posted in `output/{date}/asana/stale_nudges.json`:

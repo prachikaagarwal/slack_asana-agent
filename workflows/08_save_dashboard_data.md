@@ -3,7 +3,7 @@
 ## Goal
 After all customers are processed, write a `dashboard_data.json` file that powers the HTML action item dashboard.
 
-Output path is read from `$DASHBOARD_OUTPUT_PATH` in `.env` / `.env`.
+Output path is read from `$DASHBOARD_OUTPUT_PATH` in `.env`.
 
 ## Inputs
 - `output/{date}/asana/channel_ticket_map.json` (from Step 6) — all processed customers and their issues

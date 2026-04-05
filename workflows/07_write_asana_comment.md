@@ -3,60 +3,61 @@
 ## Goal
 Post exactly one new comment per Asana ticket per run, containing all open and resolved action items in a skimmable format. Never duplicate a comment already present.
 
+**Authentication:** via the Asana MCP configured in Claude Code. No API tokens needed.
+
 ## Inputs
 - `output/{date}/asana/channel_ticket_map.json` (from Step 6)
 - `output/{date}/asana/tickets.json` — existing comments for dedup check
-- Asana PAT from `.env`
 
 ## Actions
 
 ### 1. Check for Existing Sync Comment
-- Compare the comment to be written against `existing_comment_texts` in `tickets.json`
-- If the same set of action items was already posted (match on item descriptions + statuses), skip this ticket
+- Scan `existing_comment_texts` in `tickets.json` for the `<!-- customer-slack-sync -->` marker
+- If the same set of action items is already reflected in a prior comment → skip this ticket
 - Only post if there is at least one new or newly-resolved item since last run
 
 ### 2. Format the Comment
-Build a skimmable plain-text comment:
-
 ```
-🔄 Slack Sync — {date}
+<!-- customer-slack-sync -->
+📋 Integration Issues Summary — [Customer Name]
+Last synced: [YYYY-MM-DD HH:MM]
 
-Open Issues
-• [open] Client cannot map 'product_category' field → [screenshot] https://teamairops.slack.com/archives/...
-• [open] Webhook not triggering on publish event
+---
 
-Resolved
-• [resolved ✅] Auth token expiry issue — confirmed working by client
+**Issue 1: [Short title]**
+📅 Detected: [YYYY-MM-DD]
+🔴 Status: Open
 
-Channels: #ext-acmecorp, #airops-acmecorp
+**Pain Point:** [1-2 sentences]
+**Current Status:** [1-2 sentences]
+**Ideal Status:** [1-2 sentences]
+
+---
+
+**Issue 2: [Short title]**
+📅 Detected: [YYYY-MM-DD]
+✅ Status: Resolved
+
+**Pain Point:** [1-2 sentences]
+**Current Status:** Confirmed resolved in Slack thread.
+**Ideal Status:** [1-2 sentences]
+
+---
+
+_Synced from Slack by the customer-slack-to-asana skill. Next sync: tomorrow 9am._
 ```
 
-**Formatting rules:**
-- Section headers: `Open Issues` and `Resolved` (omit a section if empty)
-- Each item: `• [status] {description}`
-- If `has_attachment: true`, append `→ [attachment] {attachment_slack_url}` on the same line
-- No markdown (Asana comments render plain text)
-- Max ~20 items total; if more, group by sub-topic with a brief header
-- End with `Channels: #channel1, #channel2` listing all source channels
+For any issue with a file attachment, append on the same line:
+`→ [attachment] https://app.slack.com/archives/{channel_id}/p{ts_no_dot}?thread_ts={parent_ts}&cid={channel_id}`
 
 ### 3. Post the Comment
-Call:
-```
-POST /tasks/{task_gid}/stories
-Content-Type: application/json
-
-{
-  "data": {
-    "text": "{formatted_comment}"
-  }
-}
-```
+Use the Asana MCP to add a story/comment to the task with the formatted text above.
 
 ### 4. Log the Result
 - On success: record `{ ticket_gid, comment_gid, posted_at }` in `output/{date}/asana/posted_comments.json`
 - On failure: record error in `output/{date}/asana/errors.json` and continue to next ticket
 
-## Rules (from CLAUDE.md)
+## Rules
 - ONE comment per ticket per run — no exceptions
 - Never post if all action items are already reflected in an existing comment
 - Distill threads to essentials — no raw message dumps
